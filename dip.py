@@ -1,7 +1,8 @@
 import simpy
 import random
 from typing import Union, NoReturn, List, Generator
-from metrics import Metrics
+from metrics import Metrics, write_to_file
+from network import NetworkManager
 
 
 FOLLOWER = 'follower'
@@ -16,13 +17,10 @@ EXPO_TIME = 1
 UNIFORM_TIME = 0
 UNIFORM_A = 1
 UNIFORM_B = 2
-ELECTION_MIN = HEARTBIT + 0.1
-ELECTION_MAX = ELECTION_MIN + 1
+ELECTION_MIN = HEARTBIT + 1.00001
+ELECTION_MAX = ELECTION_MIN + 0.5
 SLEEPING_TIME_MIN = 4
 SLEEPING_TIME_MAX = 7
-
-
-PROCESSED_ENTRIES = 0
 
 
 def get_sleeping_time() -> float:
@@ -43,10 +41,11 @@ def get_next_request_time() -> Union[NoReturn, float]:
 
 class RaftNode:
     processed_entries: int = 0  # обработанные запросы
-    #leader: RaftNode
+    network_manager: NetworkManager
 
-    def __init__(self, env: simpy.Environment, name: str, cluster: List, metrics: Metrics):
+    def __init__(self, env: simpy.Environment, name: str, cluster: List, metrics: Metrics, num_nodes):
         env.process(self.run())
+        self.node_number: int = num_nodes
         self.metrics: Metrics = metrics
         self.timeout_proc: simpy.Process = None
         self.heartbit_proc: simpy.Process = None
@@ -54,7 +53,6 @@ class RaftNode:
         self.env: simpy.Environment = env
         self.name: str = name
         self.cluster: List = cluster
-
         self.state: str = FOLLOWER
         self.vote_count: int = 0
         self.election_timeout: float = get_election_time()
@@ -63,7 +61,6 @@ class RaftNode:
         self.voted: bool = False
         self.index: int = 0
         self.term: int = 0
-        
         self.timeout_event: simpy.Event
         self.requested_vote_event: simpy.Event = self.env.event()
         self.requested_vote_event.callbacks.append(self.vote_callback)
@@ -81,14 +78,18 @@ class RaftNode:
         self.ack_count: int = 0  # число узлов, подтвердивших запись
         self.commited_count: int = 0  # число узлов, закоммитивших запись
         self.leader: RaftNode
-
+        self.outages: int = 0
         self.entries = 0
+        self.is_sending_req: bool = False
 
     def run(self) -> Generator:
         while True:
             if random.random() <= NODE_PROBABILITY_FAILURE:
                 sl = get_sleeping_time()
                 write_to_file(f'{self.name} заснул на {sl}', self.env)
+                self.metrics.common_outages += 1
+                self.metrics.outages[self.node_number] += 1
+                self.metrics.shutdown_time[self.node_number] += sl
                 self.is_shutdown = True
                 sleeping_timeout = self.env.timeout(sl)
                 # if self.state == LEADER:
@@ -126,9 +127,11 @@ class RaftNode:
             write_to_file(f'{self.name} посылает heartbit',  self.env)
             #if self.entries > 0:  # посылаем запросы группой, если пришло несколько за хартбит, посылаем их разом
                 #self.index += 1
+            if self.entries > 0:
+                self.is_sending_req = True
             for i in self.cluster:
                 if i != self:
-                    i.ack_log_event.succeed(value=self)
+                    self.network_manager.send(self.node_number, i.node_number, callback=lambda i=i: i.ack_log_event.succeed(value=self))
             self.env.process(self._process_ack())
         #else:
             #self.set_new_heartbit_event()
@@ -144,15 +147,15 @@ class RaftNode:
         # self.set_new_heartbit_event()
 
     def _process_ack(self):
-        yield self.env.timeout(0)
+        yield self.env.timeout(2.01) # ждём ответа узлов max_delay * 2?
         write_to_file(f'Лидер {self.name}, запросов:{self.entries} подтверждений: {self.ack_count}', self.env)
-        if self.entries > 0:
+        if self.is_sending_req:
             if self.ack_count > len(self.cluster) // 2:  # подтвердило большинство
                 write_to_file(f'{self.name} посылает комиты',  self.env)
                 self.index += self.entries  # лидер фиксирует запись у себя
                 for i in self.cluster:
                     if i != self:
-                        i.commit_log_event.succeed(value=self)
+                        self.network_manager.send(self.node_number, i.node_number, callback=lambda i=i: i.commit_log_event.succeed(value=self))
                 #self.entries -= 1
                 RaftNode.processed_entries += self.entries  # считаем запрос закомиченым
                 self.entries = 0
@@ -161,6 +164,7 @@ class RaftNode:
         write_to_file(f'Зафиксированных записей: {RaftNode.processed_entries}', self.env)
         write_to_file(f'Общее количество записей: {self.metrics.processed_entries}', self.env)
         self.ack_count = 0
+        self.is_sending_req = False
         #self.set_new_heartbit_event()
 
     def entry_callback(self, leader) -> None:
@@ -176,6 +180,7 @@ class RaftNode:
         if self.vote_count > len(self.cluster) // 2:
             write_to_file(f'{self.name} стал лидером',  self.env)
             self.state = LEADER
+            self.metrics.elected_leaders_amount[self.node_number] += 1
             self.set_new_heartbit_event()
             self.set_new_entry_event(self)
         else:
@@ -187,15 +192,19 @@ class RaftNode:
         candidate = event.value
         #self.set_new_timeout_event()  # обновили таймаут
         self.set_new_vote_event()  # обновили возможность голосовать 
-        if not self.voted and self.status != LEADER:
+        if not self.voted and self.state != LEADER:
             write_to_file(f'{self.name} голосует',  self.env)
             if candidate.term == self.term and candidate.index >= self.index or candidate.term > self.term:
-                candidate.vote_count += 1  # проголосовали за кандидата
-                self.voted = True
-                write_to_file(f'{self.name} проголосовал за {candidate.name}',  self.env)
-                if candidate.term > self.term:
-                    self.term += 1
-                    write_to_file(f'{self.name} увеличил терм из-за кандидата',  self.env)
+
+                def vote():
+                    if not self.voted:
+                        candidate.vote_count += 1  # проголосовали за кандидата
+                        self.voted = True
+                        write_to_file(f'{self.name} проголосовал за {candidate.name}',  self.env)
+                        if candidate.term > self.term:
+                            self.term += 1
+                            write_to_file(f'{self.name} увеличил терм из-за кандидата',  self.env)
+                self.network_manager.send(self.node_number, candidate.node_number, callback=vote)
 
     def timeout_callback(self, event=None) -> None:
         if not self.is_shutdown:
@@ -203,15 +212,17 @@ class RaftNode:
             #if self.env.now - self.last_heard_from_leader > self.election_timeout:
             write_to_file(f"{self.name} не получил ответа и переходит в состояние кандидата.", self.env)
             self.state = CANDIDATE
+        if self.metrics.election_start_time != 0:
+            self.metrics.election_start_time = self.env.now
 
     def ack_log_callback(self, event) -> None:
         write_to_file(f'К {self.name} пришел запрос ack', self.env)
         self.leader = event.value
         if self.state == CANDIDATE and self.term < self.leader.term:
             self.state = FOLLOWER
-        if not self.is_shutdown and not self.leader.is_shutdown and self.term <= self.leader.term: # что с индексом? если терм принимающего выше?
-            if self.state == LEADER:  # если получили терм поновее(или такой же?) зануляем запросы лидера, передаем их новому, отменяем хартбиты и entry
-                self.leader.entries = self.entries
+        if not self.is_shutdown and not self.leader.is_shutdown and self.term <= self.leader.term:
+            if self.state == LEADER:
+                #self.leader.entries = self.entries
                 self.entries = 0
                 if self.leader.term >= self.term:
                     if self.heartbit_proc.is_alive:
@@ -224,18 +235,30 @@ class RaftNode:
                         write_to_file(f'Прерывание Entry у {self.name}', self.env)
                     else:
                         write_to_file(f'Entry нет у {self.name}', self.env)
+                    
+                    self.metrics.election_lasting += self.env.now - self.metrics.election_start_time
+                    self.metrics.election_start_time = 0
 
             self.state = FOLLOWER
-            if self.leader.entries > 0 and self.index != self.leader.index:  # фоловер не синхронизирован
+            if self.leader.is_sending_req and self.index != self.leader.index:  # фоловер не синхронизирован
                 write_to_file(f'{self.name} не синхронизирован с {self.leader.name}, терм лидера {self.leader.term}, индекс лидера {self.leader.index}, терм узла {self.term} индекс узла {self.index}',  self.env)
-                self.index = self.leader.index  # синхронизировали(доработка)
 
-            if self.leader.entries > 0:  # если это не простой хартбит
-                self.leader.ack_count += 1
-                self.voted = False  # после выборов нужно установить в False
-                self.vote_count = 0
-                #self.index += 1
-                write_to_file(f'{self.name} подтвердил запрос {self.leader.name}, терм лидера {self.leader.term}, индекс лидера {self.leader.index}, терм узла {self.term} индекс узла {self.index}',  self.env)
+                def syn_index():
+                    self.index = self.leader.index
+
+                #double = True, 2 сетевых взаимодействия - уведомление о синхронизации и нужные данные от лидера
+                self.network_manager.send(self.leader.node_number, self.node_number, callback=syn_index, double=True)
+                #self.index = self.leader.index  # синхронизировали(доработка)
+            write_to_file(f'{self.leader.name, self.leader.is_sending_req}', self.env)
+            if self.leader.is_sending_req:  # если это не простой хартбит
+
+                def ack():
+                    self.leader.ack_count += 1
+                    self.voted = False  # после выборов нужно установить в False
+                    self.vote_count = 0
+                    #self.index += 1
+                    write_to_file(f'{self.name} подтвердил запрос {self.leader.name}, терм лидера {self.leader.term}, индекс лидера {self.leader.index}, терм узла {self.term} индекс узла {self.index}',  self.env)
+                self.network_manager.send(self.node_number, self.leader.node_number, callback=ack)
             self.voted = False  # после выборов нужно установить в False
             self.vote_count = 0
         self.last_heard_from_leader = self.env.now
@@ -248,6 +271,7 @@ class RaftNode:
             self.index = self.leader.index  # не += 1, т.к. если обновится терм, то индекс должен слететь на 0
             #self.index += 1
             write_to_file(f'{self.name} закоммитил запрос {self.leader.name}, терм лидера {self.leader.term}, индекс лидера {self.leader.index}, терм {self.term} индекс {self.index}', self.env)
+            
         self.set_new_commit_event()
 
     def request_votes(self) -> None:
@@ -256,8 +280,11 @@ class RaftNode:
         self.voted = True
         for node in self.cluster:  # посылаем запросы
             if node != self and not node.is_shutdown:
-                node.set_new_vote_event()
-                node.requested_vote_event.succeed(value=self)
+                def request():
+                    node.set_new_vote_event()
+                    node.requested_vote_event.succeed(value=self)
+                request()
+                #self.network_manager.send(self.leader.node_number, self.node_number, callback=lambda: request)
 
     def set_new_ack_event(self):
         self.ack_log_event = self.env.event()
@@ -321,24 +348,23 @@ class RaftNode:
         # self.entry_event.callbacks.append(self.entry_callback)
 
 
-def write_to_file(text, env):
-    with open('results.txt', mode='a') as f:
-        f.write(f'\n{env.now}: {text}')
-
-
 def run_simulation():
     env = simpy.Environment()
-    metrics = Metrics()
-    cluster = [RaftNode(env, f"Узел {i}", [], metrics) for i in range(5)]
-    cluster[0].state = LEADER
-    cluster[0].set_new_entry_event(cluster[0])
-    cluster[0].set_new_heartbit_event()
+    num_nodes = 4
+    metrics = Metrics(env, num_nodes=num_nodes)
+    network_mamanger = NetworkManager(env, num_nodes=num_nodes, max_delay=1.0)
+    RaftNode.network_manager = network_mamanger
+    leader_node = 0
+    cluster = [RaftNode(env, f"Узел {i}", [], metrics, i) for i in range(metrics.num_nodes)]
+    cluster[leader_node].state = LEADER
+    cluster[leader_node].set_new_entry_event(cluster[0])
+    cluster[leader_node].set_new_heartbit_event()
 
     for node in cluster:
         node.cluster = cluster
-        node.leader = cluster[0]
+        node.leader = cluster[leader_node]
     env.run(until=300)
-    write_to_file(f'Зафиксировано/Издано {RaftNode.processed_entries / metrics.processed_entries}', env)
+    metrics.calculate_metrics(RaftNode.processed_entries)
     clear_file()
 
 
