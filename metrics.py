@@ -1,8 +1,9 @@
+import matplotlib.pyplot as plt 
 
 
 def write_to_file(text, env):
     with open('results.txt', mode='a') as f:
-        f.write(f'\n{env.now}: {text}')
+        f.write(f'\n{round(env.now, 3)}: {text}')
 
 
 class Metrics:
@@ -50,6 +51,9 @@ class Metrics:
 
     def get_election_time(self) -> None:
         write_to_file(f'Продолжительность выборов: {self.common_outages}\n', self.env)
+
+    def build_request_time_graph(self, time, processed_entries, common_entries) -> None:  # график запросы-время
+        ...
 
     def calculate_metrics(self, served_entries) -> None:
         self.get_accuracy(served_entries=served_entries)

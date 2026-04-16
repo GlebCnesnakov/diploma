@@ -40,9 +40,10 @@ class NetworkManager:
             delay = self.get_delay(i, j)
             if double:
                 delay *= 2
-            write_to_file(f'Отправка запроса {i}->{j}, {delay} мс.', self.env)
+            write_to_file(f'Отправка {i}->{j}, {delay} мс.', self.env)
             self.env.process(self._deliver(delay, env=self.env, callback=callback))
 
     def _deliver(self, time, env, callback: None) -> Generator:
         yield env.timeout(time)
-        callback()
+        if callback is not None:
+            callback()
