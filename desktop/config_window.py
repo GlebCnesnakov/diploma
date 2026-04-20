@@ -12,14 +12,12 @@ class NetworkConfigWindow(QWidget):
 
         self.layout = QVBoxLayout()
 
-        # Heartbeat
         hb_layout = QHBoxLayout()
         hb_layout.addWidget(QLabel("Heartbeat для лидера:"))
         self.heartbeat_input = QLineEdit("1.0")
         hb_layout.addWidget(self.heartbeat_input)
         self.layout.addLayout(hb_layout)
 
-        # Кол-во узлов
         node_layout = QHBoxLayout()
         node_layout.addWidget(QLabel("Количество узлов:"))
         self.nodes_input = QSpinBox()
@@ -29,7 +27,6 @@ class NetworkConfigWindow(QWidget):
         node_layout.addWidget(self.nodes_input)
         self.layout.addLayout(node_layout)
 
-        # Кнопки пресетов
         preset_layout = QHBoxLayout()
         self.use_preset_btn = QPushButton("Использовать пресет")
         self.create_preset_btn = QPushButton("Создать пресет")
@@ -41,7 +38,6 @@ class NetworkConfigWindow(QWidget):
         preset_layout.addWidget(self.reset_btn)
         self.layout.addLayout(preset_layout)
 
-        # Выбор узла
         node_select_layout = QHBoxLayout()
         node_select_layout.addWidget(QLabel("Выберите узел:"))
         self.node_combo = QComboBox()
@@ -49,19 +45,15 @@ class NetworkConfigWindow(QWidget):
         node_select_layout.addWidget(self.node_combo)
         self.layout.addLayout(node_select_layout)
 
-        # Время поступления заявки
         self.create_request_group()
-        # Время shutdown
         self.create_shutdown_group()
 
-        # Election timeout
         election_layout = QHBoxLayout()
         election_layout.addWidget(QLabel("election_timeout:"))
         self.election_input = QLineEdit("5.0")
         election_layout.addWidget(self.election_input)
         self.layout.addLayout(election_layout)
 
-        # Sleeping time
         sleeping_layout = QHBoxLayout()
         sleeping_layout.addWidget(QLabel("sleeping_time_min:"))
         self.sleep_min_input = QLineEdit("1.0")
@@ -82,7 +74,6 @@ class NetworkConfigWindow(QWidget):
         group = QGroupBox("Время поступления заявки")
         layout = QHBoxLayout()
 
-        # Случайное время
         random_layout = QVBoxLayout()
         self.req_random_radio = QRadioButton("Случайное время")
         self.req_random_radio.setChecked(True)
@@ -95,7 +86,6 @@ class NetworkConfigWindow(QWidget):
         self.req_b_input = QLineEdit("10.0")
         random_layout.addWidget(self.req_b_input)
 
-        # Экспоненциальное
         exp_layout = QVBoxLayout()
         self.req_exp_radio = QRadioButton("Экспоненциальное")
         self.req_exp_radio.toggled.connect(self.update_request_fields)
@@ -118,8 +108,6 @@ class NetworkConfigWindow(QWidget):
     def create_shutdown_group(self):
         group = QGroupBox("Время shutdown")
         layout = QHBoxLayout()
-
-        # Случайное время
         random_layout = QVBoxLayout()
         self.shutdown_random_radio = QRadioButton("Случайное время")
         self.shutdown_random_radio.setChecked(True)
@@ -132,7 +120,6 @@ class NetworkConfigWindow(QWidget):
         self.shutdown_b_input = QLineEdit("10.0")
         random_layout.addWidget(self.shutdown_b_input)
 
-        # Экспоненциальное
         exp_layout = QVBoxLayout()
         self.shutdown_exp_radio = QRadioButton("Экспоненциальное")
         self.shutdown_exp_radio.toggled.connect(self.update_shutdown_fields)
