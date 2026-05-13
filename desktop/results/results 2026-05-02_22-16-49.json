@@ -1,0 +1,1 @@
+{"average_accuracy": 0.984, "average_amount_of_outages": 48.5, "median_elected_of_node": [0.0, 0.0, 0.0, 0.5], "median_outages_of_node": [12.5, 12.0, 12.0, 12.0], "median_syn_of_node": [0.5, 5.0, 2.5, 0.5], "average_shut_of_node": [73.827, 71.942, 78.459, 71.267], "average_duration_until": 0.121, "active_time": [-72.827, -70.942, -77.459, -70.267]}

@@ -2,14 +2,13 @@ from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QComboBox, QMessageBox
 )
-import random
 
 class NetworkDelayWindow(QWidget):
-    def __init__(self, network, num_nodes=4):
+    def __init__(self, network):
         super().__init__()
         self.setWindowTitle("Настройка сетевых задержек")
         self.setMinimumSize(400, 200)
-        self.num_nodes = num_nodes
+        self.num_nodes = network.num_nodes
         self.network = network
 
         self.layout = QVBoxLayout()
@@ -24,10 +23,10 @@ class NetworkDelayWindow(QWidget):
 
         node_layout = QHBoxLayout()
         self.node_from_combo = QComboBox()
-        self.node_from_combo.addItems([f"Узел {i}" for i in range(num_nodes)])
+        self.node_from_combo.addItems([f"Узел {i}" for i in range(self.num_nodes)])
         self.node_from_combo.currentIndexChanged.connect(self.set_time)
         self.node_to_combo = QComboBox()
-        self.node_to_combo.addItems([f"Узел {i}" for i in range(num_nodes)])
+        self.node_to_combo.addItems([f"Узел {i}" for i in range(self.num_nodes)])
         self.node_to_combo.currentIndexChanged.connect(self.set_time)
         self.delay_input = QLineEdit()
         self.delay_input.setPlaceholderText("Задержка между узлами (ms)")
@@ -43,7 +42,6 @@ class NetworkDelayWindow(QWidget):
         apply_btn = QPushButton("Применить задержку")
         apply_btn.clicked.connect(self.apply_delay)
         self.layout.addWidget(apply_btn)
-
         self.setLayout(self.layout)
 
     def set_time(self):
