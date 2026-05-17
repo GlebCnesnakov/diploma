@@ -6,8 +6,9 @@ import json
 import datetime
 import os
 import simpy
-from delay_window import NetworkDelayWindow
-
+from topology_editor import MainWindow
+from PyQt5.QtWidgets import QFileDialog
+import math
 
 
 class NetworkConfigWindow(QWidget):
@@ -43,8 +44,11 @@ class NetworkConfigWindow(QWidget):
         self.use_preset_btn.clicked.connect(self.show_use_preset_window)
         self.create_preset_btn = QPushButton("Создать пресет")
         self.create_preset_btn.clicked.connect(self.show_create_preset_window)
-        self.delays_btn = QPushButton("Задержки")
+        self.delays_btn = QPushButton("Топология")
         self.delays_btn.clicked.connect(self.delays_show)
+        self.load_topology_btn = QPushButton("Загрузить топологию")
+        self.load_topology_btn.clicked.connect(self.load_topology_json)
+        preset_layout.addWidget(self.load_topology_btn)
         self.reset_btn = QPushButton("Сбросить")
         self.reset_btn.clicked.connect(self.reset)
         preset_layout.addWidget(self.use_preset_btn)
@@ -90,8 +94,48 @@ class NetworkConfigWindow(QWidget):
         self.setLayout(self.layout)
         self.update_node_combo()
 
+    def get_topologies_path(self):
+        # папка в проекте
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        path = os.path.join(project_root, 'desktop', 'topologies')
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def load_topology_json(self):
+        path = self.get_topologies_path()
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(
+            None,
+            "Выберите topology json",
+            path,
+            "JSON Files (*.json)",
+            options=options
+        )
+
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                topology = json.load(f)
+
+            self.network_manager.set_topology(topology)
+            self.update_node_combo(len(topology['nodes']))
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setWindowTitle("Успех")
+            msg.setText("Топология успешно загружена")
+            msg.exec_()
+
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Ошибка")
+            msg.setText(f"Не удалось загрузить топологию:\n{e}")
+            msg.exec_()
+
     def delays_show(self):
-        self.network_delays_window = NetworkDelayWindow(network=self.network_manager)
+        self.network_delays_window = MainWindow(self.network_manager, self)
         self.network_delays_window.show()
 
     def reset(self):
@@ -137,7 +181,7 @@ class NetworkConfigWindow(QWidget):
         self.use_preset_window.show()
 
     def set_network_config(self, filename, window):
-
+        
         def refresh_settings():
             gen = self.network_config['general']
             self.heartbeat_input.setText(str(gen['heartbeat']))
@@ -288,8 +332,12 @@ class NetworkConfigWindow(QWidget):
                 item.setSelected(i in selected_nodes)
         self.update_shutdown_fields()
 
-    def update_node_combo(self, count=None):
-        count = self.nodes_input.value() if count is None else count
+    def update_node_combo(self, amount=0):
+        if amount == 0:
+            count = self.nodes_input.value()
+        else:
+            count = amount
+            self.nodes_input.setValue(amount)
         self.node_combo.clear()
         self.node_combo.addItems([f"Узел {i}" for i in range(count)])
         self.req_manual_nodes.clear()

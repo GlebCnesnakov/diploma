@@ -13,8 +13,11 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
-from model.raft import run
+print(dir(__import__(__name__)))
 from model.network import NetworkManager
+from model.algo import run
+#from model.run import Run
+#import model.raft
 import json
 import datetime
 
@@ -134,10 +137,8 @@ class MainWindow(QMainWindow):
         project_root = os.path.join(current_dir, '..')          # dip/
         results_dir = os.path.join(project_root, 'results')     # dip/results
         file_path = os.path.join(results_dir, f'results {timestamp}.json')
-        # Создаём папку, если её нет
-        data = json.dumps(results)
-        with open(file_path, 'a') as f:
-            f.write(data)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=4)
 
     def run_simulation(self):
         runs = self.runs_input.value()
@@ -150,6 +151,7 @@ class MainWindow(QMainWindow):
         common_outages = 0
         elected_nodes = [[] for _ in range(nodes)]
         outages = [[] for _ in range(nodes)]
+        
         syn = [[] for _ in range(nodes)]
         shutdown_time = [0 for _ in range(nodes)]
         times_issued = []

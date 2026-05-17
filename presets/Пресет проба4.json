@@ -1,1 +1,67 @@
-{"general": {"heartbeat": 1.0, "election_timeout": 5.0, "sleeping_time_min": 1.0, "sleeping_time_max": 3.0, "num_nodes": 4}, "nodes": [{"node_id": 0, "request_time": {"type": "manual", "value": 66.0, "nodes": [0, 1]}, "shutdown_time": {"type": "random", "a": 0.0, "b": 10.0}}, {"node_id": 1, "request_time": {"type": "manual", "value": 66.0, "nodes": [0, 1]}, "shutdown_time": {"type": "random", "a": 0.0, "b": 10.0}}, {"node_id": 2, "request_time": {"type": "exponential", "lambda": 23.0}, "shutdown_time": {"type": "random", "a": 0.0, "b": 10.0}}, {"node_id": 3, "request_time": {"type": "exponential", "lambda": 23.0}, "shutdown_time": {"type": "random", "a": 0.0, "b": 10.0}}]}
+{
+  "general": {
+    "heartbeat": 1.0,
+    "election_timeout": 5.0,
+    "sleeping_time_min": 1.0,
+    "sleeping_time_max": 3.0,
+    "num_nodes": 4
+  },
+  "nodes": [
+    {
+      "node_id": 0,
+      "request_time": {
+        "type": "manual",
+        "value": 66.0,
+        "nodes": [
+          0,
+          1
+        ]
+      },
+      "shutdown_time": {
+        "type": "random",
+        "a": 0.0,
+        "b": 10.0
+      }
+    },
+    {
+      "node_id": 1,
+      "request_time": {
+        "type": "manual",
+        "value": 66.0,
+        "nodes": [
+          0,
+          1
+        ]
+      },
+      "shutdown_time": {
+        "type": "random",
+        "a": 0.0,
+        "b": 10.0
+      }
+    },
+    {
+      "node_id": 2,
+      "request_time": {
+        "type": "exponential",
+        "lambda": 23.0
+      },
+      "shutdown_time": {
+        "type": "random",
+        "a": 0.0,
+        "b": 10.0
+      }
+    },
+    {
+      "node_id": 3,
+      "request_time": {
+        "type": "exponential",
+        "lambda": 23.0
+      },
+      "shutdown_time": {
+        "type": "random",
+        "a": 0.0,
+        "b": 10.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "x": -296.0,
+            "y": -387.0,
+            "enabled": true
+        },
+        {
+            "id": 1,
+            "x": -447.0,
+            "y": -139.0,
+            "enabled": true
+        },
+        {
+            "id": 2,
+            "x": -283.0,
+            "y": -243.0,
+            "enabled": true
+        },
+        {
+            "id": 3,
+            "x": -114.0,
+            "y": -175.0,
+            "enabled": true
+        }
+    ],
+    "edges": [
+        {
+            "source": 0,
+            "target": 1,
+            "delay": 0.1
+        },
+        {
+            "source": 0,
+            "target": 2,
+            "delay": 0.11
+        },
+        {
+            "source": 0,
+            "target": 3,
+            "delay": 0.13
+        },
+        {
+            "source": 1,
+            "target": 2,
+            "delay": 0.12
+        },
+        {
+            "source": 1,
+            "target": 3,
+            "delay": 0.14
+        },
+        {
+            "source": 2,
+            "target": 3,
+            "delay": 0.1
+        }
+    ]
+}
