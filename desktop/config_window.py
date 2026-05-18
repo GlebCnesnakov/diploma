@@ -34,9 +34,11 @@ class NetworkConfigWindow(QWidget):
         node_layout.addWidget(QLabel("Количество узлов:"))
         self.nodes_input = QSpinBox()
         self.nodes_input.setMinimum(1)
+        self.nodes_input.setMaximum(self.network_manager.graph.number_of_nodes())
         self.nodes_input.setValue((self.network_config['general']['num_nodes']))
         self.nodes_input.valueChanged.connect(self.update_node_combo)
         node_layout.addWidget(self.nodes_input)
+        self.nodes_input.setEnabled(False)
         self.layout.addLayout(node_layout)
 
         preset_layout = QHBoxLayout()
@@ -93,6 +95,18 @@ class NetworkConfigWindow(QWidget):
 
         self.setLayout(self.layout)
         self.update_node_combo()
+        self.set_network_config('/presets/Пресет обычный.json')
+
+    def set_max_nodes(self, amount):
+        self.nodes_input.blockSignals(True)
+
+        self.nodes_input.setMaximum(amount)
+        self.nodes_input.setMinimum(amount)
+        self.nodes_input.setValue(amount)
+
+        self.nodes_input.blockSignals(False)
+
+        self.nodes_input.repaint()
 
     def get_topologies_path(self):
         # папка в проекте
@@ -121,6 +135,7 @@ class NetworkConfigWindow(QWidget):
 
             self.network_manager.set_topology(topology)
             self.update_node_combo(len(topology['nodes']))
+            self.set_max_nodes(len(topology['nodes']))
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
             msg.setWindowTitle("Успех")
@@ -180,15 +195,15 @@ class NetworkConfigWindow(QWidget):
         self.use_preset_window.setLayout(use_preset_layout)
         self.use_preset_window.show()
 
-    def set_network_config(self, filename, window):
-        
+    def set_network_config(self, filename, window=None):
+
         def refresh_settings():
             gen = self.network_config['general']
             self.heartbeat_input.setText(str(gen['heartbeat']))
             self.sleep_max_input.setText(str(gen['sleeping_time_max']))
             self.sleep_min_input.setText(str(gen['sleeping_time_min']))
             self.election_input.setText(str(gen['election_timeout']))
-            self.nodes_input.setValue(gen['num_nodes'])
+            #self.nodes_input.setValue(gen['num_nodes'])
             self.update_node_combo()
 
         try:
@@ -197,7 +212,8 @@ class NetworkConfigWindow(QWidget):
                 self.network_config = json.loads(text)
                 print('HELLO\n', self.network_config)
                 refresh_settings()
-                window.hide()
+                if window is not None:
+                    window.hide()
         except Exception as e:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -236,7 +252,7 @@ class NetworkConfigWindow(QWidget):
     def accept_config(self):
         #num_nodes = len(self.network_config['nodes'])
         count = self.nodes_input.value()
-        self.network_manager.num_nodes = count # перезапуск манагера при изменении колва узлов
+        # перезапуск манагера при изменении колва узлов
         self.network_manager.refresh_delays()
 
         #for index in range(num_nodes):
@@ -337,7 +353,6 @@ class NetworkConfigWindow(QWidget):
             count = self.nodes_input.value()
         else:
             count = amount
-            self.nodes_input.setValue(amount)
         self.node_combo.clear()
         self.node_combo.addItems([f"Узел {i}" for i in range(count)])
         self.req_manual_nodes.clear()

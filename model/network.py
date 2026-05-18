@@ -25,12 +25,14 @@ class NetworkManager:
         #self.fill_delays()
         #self.set_topology(data)
         self.active_graph = nx.Graph()
+        self.set_topology()
         print(self.delays)
 
-    def set_topology(self, data: json):
-        #self.graph = nx.Graph()
-        with open('desktop/topologies/topology_2026-05-15_13-47-38.json') as f:
-            data = json.load(f)
+    def set_topology(self, data: json = None):
+        self.graph = nx.Graph()
+        if data is None:
+            with open('desktop/topologies/topology_2026-05-15_13-47-38.json') as f:
+                data = json.load(f)
         for node in data['nodes']:
             self.graph.add_node(
                 node['id'],
@@ -42,7 +44,9 @@ class NetworkManager:
                 edge['target'],
                 delay=edge['delay']
             )
+        self.num_nodes = self.graph.number_of_nodes()
         self.fill_delays()
+        
 
     def refresh_delays(self):
         self.delays = [[None for _ in range(self.num_nodes)] for _ in range(self.num_nodes)]
@@ -65,9 +69,12 @@ class NetworkManager:
             self.delays[i][i] = 0.0
 
         for src, dst, attrs in self.graph.edges(data=True):
+            if src >= self.num_nodes or dst >= self.num_nodes:
+                raise ValueError(
+                    f'Edge {src}->{dst} выходит за пределы num_nodes={self.num_nodes}'
+                )
 
             delay = attrs['delay']
-
             self.delays[src][dst] = delay
             self.delays[dst][src] = delay
         print(self.delays)
@@ -122,7 +129,7 @@ class NetworkManager:
                 if len(path) < 2:
                     return None
                 return path[1]
-            except nx.NetworkXNoPath:
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
                 return None
 
     def enable_node(self, node_id: int):
