@@ -1,19 +1,13 @@
 import logging
 
 
-def write_to_file(text, env, timestamp):
-    ...
-    #with open(f'logs/log {timestamp}.txt', 'a') as f:
-        #f.write(f'\n{round(env.now, 3)}: {text}')
-
-
 class Metrics:
     def __init__(self, env,  timestamp, num_nodes=4):
         self.timestamp = timestamp
         self.processed_entries: int = 0
         self.num_nodes: int = num_nodes
         self.common_outages: int = 0
-        self.outages: list = [0] * self.num_nodes
+        self.outages: list = [0] * self.num_nodes   
         self.elected_leaders_amount = [0] * self.num_nodes
         self.syn_requests: list = [0] * self.num_nodes
         self.shutdown_time: list = [0] * self.num_nodes

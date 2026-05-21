@@ -277,7 +277,7 @@ class GraphScene(QGraphicsScene):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, network_manager,):
+    def __init__(self, network_manager):
         super().__init__()
         self.network_manager = network_manager
         self.setWindowTitle('Редактор топологии сети')
